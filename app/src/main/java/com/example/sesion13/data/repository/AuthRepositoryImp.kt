@@ -3,11 +3,12 @@ package com.example.sesion13.data.repository
 import android.content.SharedPreferences
 import com.example.sesion13.data.model.Usuario
 import com.example.sesion13.util.UiState
-import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.*
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.ktx.Firebase
 import com.google.gson.Gson
 import com.example.sesion13.util.FireStoreCollection
+import com.example.sesion13.util.SharedPrefConstants
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
@@ -120,18 +121,58 @@ class AuthRepositoryImp (
     }
 
     override fun recuperarContrasena(correo: String, result: (UiState<String>) -> Unit) {
-        TODO("Not yet implemented")
+
+        auth.sendPasswordResetEmail(correo)
+            .addOnCompleteListener { task ->
+
+            if(task.isSuccessful){
+                result.invoke(UiState.Success("Correo enviado con exito"))
+            }
+                else{
+                    result.invoke(UiState.Faile(task.exception?.message))
+            }
+            }
+            .addOnFailureListener {
+                result.invoke(UiState.Faile("Error en la autenticación"))
+            }
     }
 
     override fun cerrarSesion(result: () -> Unit) {
-        TODO("Not yet implemented")
+
+        auth.signOut()
+        appPreferences.edit().putString(SharedPrefConstants.USUARIO_SESION,null).apply()
+        result.invoke()
+
     }
 
     override fun AlmacenamientoSesion(id: String, result: (Usuario?) -> Unit) {
-        TODO("Not yet implemented")
+
+        database.collection(FireStoreCollection.USUARIO).document(id)
+            .get()
+            .addOnCompleteListener {
+                if(it.isSuccessful){
+                    val usuario = it.result.toObject(Usuario::class.java)
+                    appPreferences.edit().putString(SharedPrefConstants.USUARIO_SESION, gson.toJson(usuario)).apply()
+                    result.invoke(usuario)
+                }
+                else{
+                    result.invoke(null)
+                }
+            }.addOnFailureListener {
+                result.invoke(null)
+            }
     }
 
     override fun getSesion(result: (Usuario?) -> Unit) {
-        TODO("Not yet implemented")
+
+        val usuario_string = appPreferences.getString(SharedPrefConstants.USUARIO_SESION, null)
+        if(usuario_string == null){
+            result.invoke(null)
+        }
+        else{
+            val usuario = gson.fromJson(usuario_string, Usuario::class.java)
+            result.invoke(usuario)
+        }
+
     }
 }
